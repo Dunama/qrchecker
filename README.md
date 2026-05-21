@@ -18,7 +18,7 @@ Roles and behavior:
 - `hotel`: dry-cleaning intake/release with optional notes.
 - `logistics`: delivery confirmation (`DRY_CLEAN_OUT → DELIVERED`).
 - `renter`: read-only tracking view.
-
+                                        
 
 ## Minimal demo flow
 
