@@ -29,7 +29,7 @@ app = FastAPI(
 )
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# ── Logging / request correlation ───────────────────────────────────────────
+# Logging / request correlation
 _request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
 
 logger = logging.getLogger("rental_qr_tracker")

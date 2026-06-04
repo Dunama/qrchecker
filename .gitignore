@@ -5,7 +5,9 @@ __pycache__/
 *.pyo
 
 # Ignore the .env file if it contains sensitive information
-.env        
+.env
+.env.*
+.env.local
 # Ignore the .vscode directory if it contains workspace settings                                                                
 .vscode/
 
@@ -17,4 +19,9 @@ __pycache__/
 # Ignore the .mypy_cache directory if it contains mypy cache files
 .mypy_cache/        
 # Ignore the .coverage file if it contains coverage data
-.coverage   
+.coverage
+.coverage.*
+.ruff_cache/
+htmlcov/
+.DS_Store
+Thumbs.db

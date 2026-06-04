@@ -1,107 +1,98 @@
-# Clothing Rental QR Tracker — FastAPI Demo
+# Rental QR Tracker
 
-This project is a privacy-first QR tracking system for clothing rentals. It models a real-world operational flow (seller pickup, hotel dry cleaning, logistics delivery) while keeping the QR payload free of PII. The QR code is only a signed pointer to a server-side record, and every scan is validated and logged.
+A QR-based tracking service for multi-party clothing workflows. A single QR code is shared across pickup, cleaning, and delivery steps, while the server enforces legal stage transitions and logs a full audit trail.
 
+## Why this exists
 
-## What this service does
+Hand-offs across sellers, hotels, and logistics providers often rely on fragmented checklists and ad-hoc updates. This service centralizes tracking so every scan is validated, sequenced, and recorded in one consistent timeline.
 
-This is a single-QR, multi-role workflow:
+## Problems solved
 
-- One QR code is generated at order creation and shared with every party.
-- The QR contains only `{oid, iat, exp, sig}` — no names, addresses, or room numbers.
-- Every scan is verified server-side using HMAC, and can only advance to the next legal stage.
-- Responses are scoped by role so each party sees only the fields they need.
+- Prevents out-of-order updates by enforcing a server-side transition table.
+- Avoids leaking sensitive details by keeping the QR payload minimal and signed.
+- Reduces hand-off confusion with role-scoped responses and a clear audit trail.
 
-Roles and behavior:
+## Tech stack
 
-- `seller`: confirms pickup (`CONFIRMED → ITEM_COLLECTED`).
-- `hotel`: dry-cleaning intake/release with optional notes.
-- `logistics`: delivery confirmation (`DRY_CLEAN_OUT → DELIVERED`).
-- `renter`: read-only tracking view.
-                                        
+- Backend: FastAPI, Uvicorn, Pydantic
+- QR: qrcode (Pillow)
+- Frontend: React, Vite
 
-## Minimal demo flow
+## What is implemented
 
-1. Open the frontend.
-2. **Create Order** → you’ll get an `order_id`, a QR image, and a `qr_token` JSON blob.
-3. **Scan / Advance Stage** → paste the `qr_token` JSON and pick a role:
-    - `seller` advances `CONFIRMED → ITEM_COLLECTED`
-    - `hotel` advances `ITEM_COLLECTED → DRY_CLEAN_IN → DRY_CLEAN_OUT`
-    - `logistics` advances `DRY_CLEAN_OUT → DELIVERED`
-    - `renter` is read-only and returns a timeline view
-4. **Timeline** → paste the `order_id` to view the full audit events.
+- Order creation with QR generation and a signed token payload
+- Role-based scans that advance stages only when allowed
+- Full timeline endpoint for audit events
+- QR revocation to immediately invalidate a code
+- Frontend workflow to create, scan, and view timelines
 
-## Three core principles
+## How to run locally
 
-| Principle | Implementation |
-|---|---|
-| **Privacy by design** | QR payload = `{oid, iat, exp, sig}` — no names, no room numbers, no PII |
-| **Signed & tamper-proof** | HMAC-SHA256 over the payload; server checks expiry; revocable server-side |
-| **Role-scoped responses** | Same QR, four different views. Seller sees item code. Hotel adds dry-clean notes. Logistics sees delivery window. Renter sees timeline only. |
+### Backend
 
-## Lifecycle
+1. Install dependencies:
 
-```
-Payment confirmed
-    ↓
-POST /orders              → QR generated, broadcast to all parties
-    ↓
-POST /scan  (role=seller)    → ITEM_COLLECTED  (stage 1.1)
-    ↓
-POST /scan  (role=hotel)     → DRY_CLEAN_IN    (stage 1.2a)
-POST /scan  (role=hotel)     → DRY_CLEAN_OUT   (stage 1.2b)
-    ↓
-POST /scan  (role=logistics) → DELIVERED       (stage 1.3)
-    ↓
-GET  /orders/{id}/timeline   → full audit trail
+```bash
+pip install -r requirements.txt
 ```
 
-## Key design decisions
+2. Set environment variables (PowerShell):
 
-### QR is a pointer, not a document
-The printed code contains only `{oid, iat, exp, sig}`.  
-No name. No room number. No item description.  
-PII never leaves the server.
+```powershell
+$env:SECRET_KEY="change-me"
+$env:QR_EXPIRY_HOURS="72"
+```
 
-### Stage cannot be forged
-Even if someone copies the raw QR bytes, they cannot advance a stage out of sequence.  
-The server holds the transition table (`CONFIRMED → ITEM_COLLECTED → …`).  
-A role mismatch returns a friendly "no action required" — not an error.
+3. Start the API:
 
-### Opt-out / revoke
-`POST /orders/{id}/revoke` immediately invalidates the code server-side.  
-No new code needs to be printed.
+```bash
+uvicorn main:app --reload
+```
 
-### Extending to production
-- Replace `orders_db` / `events_db` with Postgres + Redis
-- Issue role tokens via OAuth2 (FastAPI `Depends` on a `get_current_role`)
-- Store `SECRET_KEY` in a secrets manager (Vault, AWS Secrets Manager)
-- Add WebSocket push so all parties see stage updates in real time
-- Print QR on a thermal receipt — embed as PNG from `qr_image_b64`
+The API runs at `http://127.0.0.1:8000`.
 
-## Response shape (high level)
+### Frontend
 
-Most responses include:
+1. Install dependencies:
 
-- `request_id` for correlation across logs and clients.
-- `status_code` for quick client-side checks.
+```bash
+cd frontend
+npm install
+```
 
-Errors follow a consistent shape:
+2. Set the API base URL:
 
-- `detail` with the error reason.
-- `request_id` and `status_code`.
+```powershell
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
+```
 
-## Deployment notes (Render)
+3. Start the dev server:
 
-Backend (FastAPI Web Service):
+```bash
+npm run dev
+```
 
-- Build: `pip install -r requirements.txt`
-- Start: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Env: `SECRET_KEY`, `QR_EXPIRY_HOURS`
+## API overview
 
-Frontend (Static Site):
+- `POST /orders` creates an order and returns a QR token plus an image payload
+- `POST /scan` validates the token, enforces the next stage, and returns role-scoped data
+- `GET /orders/{id}/timeline` returns the full audit trail
+- `POST /orders/{id}/revoke` invalidates the QR token server-side
 
-- Root directory: `frontend`
-- Build: `npm install && npm run build`
-- Publish: `frontend/dist`
-- Env: `VITE_API_BASE_URL=https://YOUR-API.onrender.com`
+## Example flow
+
+1. Create an order to receive `order_id` and `qr_token`.
+2. Scan with a role to advance the stage in order: seller -> hotel -> logistics.
+3. Fetch the timeline to see all audit events.
+
+## Configuration
+
+- `SECRET_KEY`: HMAC signing key for QR tokens (required).
+- `QR_EXPIRY_HOURS`: QR token expiry in hours.
+- `VITE_API_BASE_URL`: frontend base URL for the API.
+
+## Notes for production
+
+- Replace in-memory stores with a persistent database and cache.
+- Add role authentication to limit who can advance stages.
+- Store secrets in a managed secrets service.
