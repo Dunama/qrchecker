@@ -1,6 +1,6 @@
 import './App.css'
 import { useMemo, useState } from 'react'
-import { API_BASE_URL, createOrder, getTimeline, scan } from './api'
+import { createOrder, getTimeline, scan } from './api'
 
 function toPrettyJson(value) {
   try {

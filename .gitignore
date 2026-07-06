@@ -1,27 +1,39 @@
-venv
-.venv
-__pycache__/        
-*.pyc
-*.pyo
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
 
-# Ignore the .env file if it contains sensitive information
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment / secrets
 .env
 .env.*
-.env.local
-# Ignore the .vscode directory if it contains workspace settings                                                                
-.vscode/
+!.env.example
 
-# Ignore the .idea directory if it contains IDE settings
-.idea/
-
-# Ignore the .pytest_cache directory if it contains pytest cache files
+# Test / coverage
 .pytest_cache/
-# Ignore the .mypy_cache directory if it contains mypy cache files
-.mypy_cache/        
-# Ignore the .coverage file if it contains coverage data
+.mypy_cache/
+.ruff_cache/
 .coverage
 .coverage.*
-.ruff_cache/
 htmlcov/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Editors / OS
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db

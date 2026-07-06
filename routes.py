@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
@@ -32,12 +31,12 @@ def create_order(req: CreateOrderReq):
         "current_stage": Stage.CONFIRMED,
         "delivery_window": req.delivery_window,
         "dry_clean_notes": None,
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": _now_iso(),
         "revoked": False,
         "qr_token": token,
     }
     events_db[order_id] = [
-        {"stage": Stage.CONFIRMED, "by": "system", "ts": datetime.utcnow().isoformat() + "Z"}
+        {"stage": Stage.CONFIRMED, "by": "system", "ts": _now_iso()}
     ]
 
     qr_image = qr_to_base64(token)
@@ -56,7 +55,7 @@ def create_order(req: CreateOrderReq):
 
 @router.post("/scan", summary="Scan QR - role-scoped response")
 def scan_qr(req: ScanReq):
-    token = {k: v for k, v in req.qr_token.items()}
+    token = req.qr_token
     role = req.role
 
     _log(

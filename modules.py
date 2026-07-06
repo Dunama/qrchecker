@@ -8,7 +8,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import HTTPException, Request
@@ -31,7 +31,7 @@ if not logger.handlers:
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _get_request_id() -> str:
@@ -118,12 +118,28 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Config (dev-safe defaults) - set via environment variables in production.
-SECRET_KEY = os.getenv("SECRET_KEY")
+# Config (dev-safe defaults) - override via environment variables in production.
+_DEV_SECRET = "dev-insecure-secret-change-me"
+SECRET_KEY = os.getenv("SECRET_KEY") or _DEV_SECRET
+if SECRET_KEY == _DEV_SECRET:
+    logger.warning(
+        json.dumps(
+            {
+                "ts": _now_iso(),
+                "event": "config_warning",
+                "message": (
+                    "SECRET_KEY is not set; using an insecure development key. "
+                    "Set SECRET_KEY before deploying."
+                ),
+            },
+            separators=(",", ":"),
+        )
+    )
+
 try:
-    QR_EXPIRY_HOURS = int(os.getenv("QR_EXPIRY_HOURS"))
-except ValueError:
-    os.getenv("QR_EXPIRY_HOURS")
+    QR_EXPIRY_HOURS = int(os.getenv("QR_EXPIRY_HOURS", "72"))
+except (TypeError, ValueError):
+    QR_EXPIRY_HOURS = 72
 
 # In-memory store (swap for Postgres / Redis in production)
 orders_db: dict = {}
